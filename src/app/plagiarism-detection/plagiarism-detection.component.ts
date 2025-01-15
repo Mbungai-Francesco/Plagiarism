@@ -1,7 +1,9 @@
 import { CommonModule } from '@angular/common';
 import { Component } from '@angular/core';
-import pdfjsLib from 'pdfjs-dist';
+import * as pdfjsLib from 'pdfjs-dist';
 import mammoth from 'mammoth';
+import nlp from 'compromise';
+// import * as contractions from 'contractions'; 
 
 interface ComparisonResult {
   text1: string;
@@ -33,8 +35,7 @@ export class PlagiarismDetectionComponent {
       if (this.fileList.filter(name => name === file.name).length === 0) {
         this.fileList.push(file.name);
       }
-      // const text = await this.readFile(file);
-      // console.log(text);
+
       let text;
       try {
         switch (extension) {
@@ -55,27 +56,12 @@ export class PlagiarismDetectionComponent {
         alert('Failed to process the file.');
       }
       if (text) {
-        console.log(text);
+        // console.log(text);
+        this.lemmatization(text);
         this.documents.set(file.name, text);
       }
     }
   }
-
-  openFileExplorer(fileType: 'image' | 'pdf') {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = fileType === 'image' ? 'image/*' : 'pdf/*';
-
-    input.onchange = (event: any) => {
-      const file = event.target.files[0];
-     this.processPdf(file).then((text)=>{
-      console.log(text)
-     })
-      // Handle file here
-    };
-
-    input.click();
-  }
 
   async processTxt(file: File): Promise<string> {
     return new Promise<string>((resolve, reject) => {
@@ -112,13 +98,40 @@ export class PlagiarismDetectionComponent {
     return result.value;
   }
 
-  private readFile(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (e) => resolve(e.target?.result as string);
-      reader.onerror = (e) => reject(e);
-      reader.readAsText(file);
-    });
+  // private readFile(file: File): Promise<string> {
+  //   return new Promise((resolve, reject) => {
+  //     const reader = new FileReader();
+  //     reader.onload = (e) => resolve(e.target?.result as string);
+  //     reader.onerror = (e) => reject(e);
+  //     reader.readAsText(file);
+  //   });
+  // }
+
+  lemmatization(text: string): string[]{
+    // Replace newline characters with spaces
+    text = text.replace(/\n/g, ' ');
+
+    // Expand contractions (e.g., "I'm" -> "I am")
+    // text = contractions.expand(text);
+
+    // Process text with compromise
+    const doc = nlp(text);
+
+    // Extract lemmatized words excluding stopwords, punctuation, and whitespace
+    // const lemmatizedWords: string[] = [];
+
+    // doc.terms().forEach(term => {
+    //   const word = term.text;
+    //   const lemma = term.lemma; // Get the lemma
+    //   if (!term.isPunctuation() && !term.isWhitespace() && !term.isStopword()) {
+    //     lemmatizedWords.push(lemma.toLowerCase());
+    //   }
+    // });
+
+    doc.contractions().expand()
+    const tokens = doc.normalize({whitespace: true,punctuation: true,contractions: true,verbs: false}).terms().toLowerCase().out('array');
+    console.log(tokens)
+    return tokens;
   }
 
   analyze() {
