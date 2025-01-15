@@ -18,8 +18,13 @@
     "@angular/platform-browser": "^18.2.0",
     "@angular/platform-browser-dynamic": "^18.2.0",
     "@angular/router": "^18.2.0",
+    "compromise": "^14.14.3",
+    "contractions": "^0.0.7",
+    "mammoth": "^1.9.0",
+    "pdfjs-dist": "^3.11.174",
     "plagiarism": "file:",
     "rxjs": "~7.8.0",
+    "stopword": "^3.1.4",
     "tslib": "^2.3.0",
     "zone.js": "~0.14.10"
   },

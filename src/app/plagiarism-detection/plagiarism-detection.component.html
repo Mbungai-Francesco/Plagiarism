@@ -1,0 +1,31 @@
+<div class="container">
+    <h2>Plagiarism Detection</h2>
+    
+    <div class="upload-section">
+      <!-- <input type="file" 
+             multiple 
+             accept=".txt,.doc,.docx,.pdf" 
+             (change)="onFileSelect($event)" 
+             #fileInput>
+      <button (click)="analyze()">Analyze Documents</button> -->
+      <button (click)="openFileExplorer('pdf')">Open Yo</button>
+    </div>
+
+    <div class="files">
+        <h3>Uploaded files</h3>
+        <div *ngFor="let file of fileList">
+            <p>{{file}}</p>
+        </div>
+    </div>
+
+    <div *ngIf="results.length" class="results-section">
+      <h3>Analysis Results</h3>
+      <div *ngFor="let result of results" class="result-item">
+        <div [ngClass]="getMatchClass(result.similarity)">
+          <h4>Match Found: {{result.matchType}}</h4>
+          <p>Similarity: {{result.similarity.toFixed(2)}}%</p>
+          <p>Between: {{result.text1}} and {{result.text2}}</p>
+        </div>
+      </div>
+    </div>
+  </div>

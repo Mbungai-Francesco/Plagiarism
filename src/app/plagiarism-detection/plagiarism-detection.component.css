@@ -1,0 +1,7 @@
+.container { padding: 20px; }
+.upload-section { margin: 20px 0; }
+.result-item { margin: 10px 0; padding: 10px; border-radius: 4px; }
+.match-exact { background-color: #ffebee; }
+.match-high { background-color: #fff3e0; }
+.match-moderate { background-color: #e8f5e9; }
+.match-low { background-color: #e3f2fd; }
