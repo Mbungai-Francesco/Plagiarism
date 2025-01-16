@@ -2,8 +2,6 @@ import { CommonModule } from '@angular/common';
 import { Component } from '@angular/core';
 import * as pdfjsLib from 'pdfjs-dist';
 import mammoth from 'mammoth';
-import nlp from 'compromise';
-// import * as contractions from 'contractions'; 
 
 interface ComparisonResult {
   text1: string;
@@ -24,6 +22,8 @@ export class PlagiarismDetectionComponent {
   private documents: Map<string, string> = new Map();
   fileList: string[] = [];
   results: ComparisonResult[] = [];
+
+  constructor(){}
 
   async onFileSelect(event: any) {
     const files: FileList = event.target.files;
@@ -56,8 +56,6 @@ export class PlagiarismDetectionComponent {
         alert('Failed to process the file.');
       }
       if (text) {
-        // console.log(text);
-        this.lemmatization(text);
         this.documents.set(file.name, text);
       }
     }
@@ -98,42 +96,6 @@ export class PlagiarismDetectionComponent {
     return result.value;
   }
 
-  // private readFile(file: File): Promise<string> {
-  //   return new Promise((resolve, reject) => {
-  //     const reader = new FileReader();
-  //     reader.onload = (e) => resolve(e.target?.result as string);
-  //     reader.onerror = (e) => reject(e);
-  //     reader.readAsText(file);
-  //   });
-  // }
-
-  lemmatization(text: string): string[]{
-    // Replace newline characters with spaces
-    text = text.replace(/\n/g, ' ');
-
-    // Expand contractions (e.g., "I'm" -> "I am")
-    // text = contractions.expand(text);
-
-    // Process text with compromise
-    const doc = nlp(text);
-
-    // Extract lemmatized words excluding stopwords, punctuation, and whitespace
-    // const lemmatizedWords: string[] = [];
-
-    // doc.terms().forEach(term => {
-    //   const word = term.text;
-    //   const lemma = term.lemma; // Get the lemma
-    //   if (!term.isPunctuation() && !term.isWhitespace() && !term.isStopword()) {
-    //     lemmatizedWords.push(lemma.toLowerCase());
-    //   }
-    // });
-
-    doc.contractions().expand()
-    const tokens = doc.normalize({whitespace: true,punctuation: true,contractions: true,verbs: false}).terms().toLowerCase().out('array');
-    console.log(tokens)
-    return tokens;
-  }
-
   analyze() {
     this.results = [];
     const documents = Array.from(this.documents.entries());
@@ -164,7 +126,12 @@ export class PlagiarismDetectionComponent {
     // Implement Levenshtein distance or other string matching algorithm
     const words1 = this.tokenize(text1);
     const words2 = this.tokenize(text2);
-    
+
+    // const ngramSimilarity = this.NGram(text1,text2)
+    // console.log("ngram ",ngramSimilarity)
+    const cosineSimilarity = this.cosineSimilarity(text1,text2)
+    console.log("cosine",cosineSimilarity);
+
     const commonWords = words1.filter(word => words2.includes(word));
     const similarity = (2.0 * commonWords.length) / (words1.length + words2.length) * 100;
     
@@ -205,10 +172,12 @@ export class PlagiarismDetectionComponent {
   }
 
   private tokenize(text: string): string[] {
-    return text.toLowerCase()
-               .replace(/[^\w\s]/g, '')
-               .split(/\s+/)
-               .filter(word => word.length > 3);
+    const tokens = text.toLowerCase()
+                .replace(/[^\w\s]/g, '')
+                .split(/\s+/)
+                .filter(word => word.length > 3);
+    console.log("done")
+    return tokens;
   }
 
   private categorizeMatch(similarity: number): 'Exact' | 'High' | 'Moderate' | 'Low' {
@@ -221,5 +190,144 @@ export class PlagiarismDetectionComponent {
   getMatchClass(similarity: number): string {
     const matchType = this.categorizeMatch(similarity);
     return `match-${matchType.toLowerCase()}`;
+  }
+
+  // Method to create n-grams from text
+  private generateNGrams(tokens: string[], n: number): string[] {
+    const nGrams: string[] = [];
+
+    for (let i = 0; i <= tokens.length - n; i++) {
+      const nGram = tokens.slice(i, i + n).join(' ');
+      nGrams.push(nGram);
+    }
+    console.log(nGrams);
+
+    return nGrams;
+  }
+
+  // Method to calculate Jaccard similarity between two sets of n-grams
+  private jaccardSimilarity(set1: Set<string>, set2: Set<string>): number {
+    const intersection = new Set([...set1].filter(x => set2.has(x)));
+    const union = new Set([...set1, ...set2]);
+
+    return intersection.size / union.size; // Jaccard similarity formula
+  }
+
+  private NGram(text1: string, text2: string): number{
+    const n = 4;
+    const nGrams1 = this.generateNGrams(this.tokenize(text1), n);
+    const nGrams2 = this.generateNGrams(this.tokenize(text2), n);
+
+
+    const set1 = new Set(nGrams1)
+    const set2 = new Set(nGrams2)
+
+    const similar = this.jaccardSimilarity(set1,set2)
+    return similar;
+  }
+
+
+  private calculateTF(tokens: string[]): Map<string, number> {
+    const tf = new Map<string, number>();
+    const totalTokens = tokens.length;
+    console.log("total tokens",totalTokens)
+
+    tokens.forEach(token => {
+      tf.set(token, (tf.get(token) || 0) + 1);
+    });
+
+    // Normalize term frequency (TF)
+    tf.forEach((value, key) => {
+      tf.set(key, value / totalTokens);
+    });
+
+    return tf;
+  }
+
+  // Calculate IDF (Inverse Document Frequency) for the whole corpus
+  private calculateIDF(corpus: string[]): Map<string, number> {
+    const idf = new Map<string, number>();
+    const totalDocuments = corpus.length;
+    console.log("total documents",totalDocuments)
+    console.log("corpus",corpus)
+  
+    corpus.forEach(document => {
+      console.log("document",document)
+      const tokens = new Set(this.tokenize(document));
+      if (tokens.size === 0) return; // Skip empty documents or documents with only stop words
+      console.log("tokens",tokens)
+
+      tokens.forEach(token => {
+        console.log("token",token)
+        if (!idf.has(token)) {
+          const count = corpus.filter(doc => doc.includes(token)).length;
+          console.log("count",count)
+          idf.set(token, Math.log(totalDocuments / count));
+        }
+      });
+    });
+  
+    return idf;
+  }
+
+
+  // Convert document to TF-IDF vector
+  private convertToTFIDF(tokens: string[], idf: Map<string, number>): Map<string, number> {
+    const tf = this.calculateTF(tokens);
+    const tfidf = new Map<string, number>();
+  
+    tf.forEach((value, key) => {
+      const idfValue = idf.get(key) || 0;
+      tfidf.set(key, value * idfValue);
+    });
+  
+    return tfidf;
+  }
+
+  private dotProduct(vector1: number[], vector2: number[]): number {
+    let dotProduct = 0;
+    for (let i = 0; i < vector1.length; i++) {
+      dotProduct += vector1[i] * vector2[i];
+    }
+    return dotProduct;
+  }
+
+  // Calculate the magnitude (or norm) of a vector
+  private magnitude(vector: number[]): number {
+    let sumOfSquares = 0;
+    for (let i = 0; i < vector.length; i++) {
+      sumOfSquares += vector[i] * vector[i];
+    }
+    return Math.sqrt(sumOfSquares);
+  }
+
+  private cosineSimilarity(doc1: string, doc2: string): number{
+    const corpus = [doc1.toLowerCase(), doc2.toLowerCase()];
+    const idf = this.calculateIDF(corpus);
+    console.log("idf", idf);
+
+    const tfidf1 = this.convertToTFIDF(this.tokenize(doc1), idf);
+    console.log("tfidf1", tfidf1);
+    const tfidf2 = this.convertToTFIDF(this.tokenize(doc2), idf);
+    console.log("tfidf2", tfidf2);
+
+    const vector1 = Array.from(tfidf1.values());
+    console.log("vector1", vector1);
+    const vector2 = Array.from(tfidf2.values());
+    console.log("vector2", vector2);
+
+    const dotProd = this.dotProduct(vector1, vector2);
+    console.log("dotproduct", dotProd);
+
+    const magnitude1 = this.magnitude(vector1);
+    console.log("magnitude1", magnitude1);
+    const magnitude2 = this.magnitude(vector2);
+    console.log("magnitude2", magnitude2);
+
+    if(magnitude1*magnitude2 === 0){
+      return 0;
+    }
+
+    return dotProd / (magnitude1 * magnitude2);
   }
 }
